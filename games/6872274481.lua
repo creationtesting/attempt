@@ -640,7 +640,12 @@ run(function()
 	end
 	vape:Clean(entitylib.Events.LocalAdded:Connect(updateVelocity))
 end)
+
 entitylib.start()
+
+if identifyexecutor and table.find({'Delta'}, ({identifyexecutor()})[1]) then
+	notif('Vape', 'Until Delta fixes their functions, it\'s not supported. You can use KRNL in the meantime @ krnl.cat', 10)
+end
 
 run(function()
 	local KnitInit, Knit
@@ -1410,9 +1415,9 @@ run(function()
 	CPS = AutoClicker:CreateTwoSlider({
 		Name = 'CPS',
 		Min = 1,
-		Max = 9,
+		Max = 9999999999,
 		DefaultMin = 7,
-		DefaultMax = 7
+		DefaultMax = 9999999999
 	})
 	AutoClicker:CreateToggle({
 		Name = 'Place Blocks',
@@ -1426,9 +1431,9 @@ run(function()
 	BlockCPS = AutoClicker:CreateTwoSlider({
 		Name = 'Block CPS',
 		Min = 1,
-		Max = 12,
+		Max = 9999999999,
 		DefaultMin = 12,
-		DefaultMax = 12,
+		DefaultMax = 9999999999,
 		Darker = true
 	})
 end)
@@ -1466,8 +1471,8 @@ run(function()
 	Value = Reach:CreateSlider({
 		Name = 'Range',
 		Min = 0,
-		Max = 18,
-		Default = 18,
+		Max = 23,
+		Default = 23,
 		Function = function(val)
 			if Reach.Enabled then
 				bedwars.CombatConstant.RAYCAST_SWORD_CHARACTER_DISTANCE = val + 2
@@ -1564,9 +1569,9 @@ run(function()
 	CPS = TriggerBot:CreateTwoSlider({
 		Name = 'CPS',
 		Min = 1,
-		Max = 9,
+		Max = 9999999999,
 		DefaultMin = 7,
-		DefaultMax = 7
+		DefaultMax = 999999999999
 	})
 end)
 	
@@ -2044,7 +2049,6 @@ run(function()
 		Tooltip = 'Lets you sprint with a speed potion.'
 	})
 end)
-	
 local Attacking
 run(function()
 	local Killaura
@@ -2102,7 +2106,9 @@ run(function()
 
 		return sword, meta
 	end
-
+    local killaurarangecirclepart: Instance? = nil;
+    local killaurarangecircle: table = {};
+    local killauracolor: table = {};
 	Killaura = vape.Categories.Blatant:CreateModule({
 		Name = 'Killaura',
 		Function = function(callback)
@@ -2112,7 +2118,19 @@ run(function()
 						lplr.PlayerGui.MobileUI['2'].Visible = Limit.Enabled
 					end)
 				end
-
+                task.spawn(function()
+                    if killaurarangecircle["Enabled"] and killaurarangecirclepart == nil and Killaura["Enabled"] then
+                        killaurarangecirclepart = Instance.new("MeshPart");
+                        killaurarangecirclepart.MeshId = "rbxassetid://3726303797";
+                        killaurarangecirclepart.Color = Color3.fromHSV(killauracolor["Hue"], killauracolor["Sat"], killauracolor.Value)
+                        killaurarangecirclepart.CanCollide = false;
+                        killaurarangecirclepart.Anchored = true;
+                        killaurarangecirclepart.Material = Enum.Material.Neon;
+                        killaurarangecirclepart.Size = Vector3.new(AttackRange.Value * 0.7, 0.01, AttackRange.Value * 0.7);
+                        killaurarangecirclepart.Parent = gameCamera;
+                        bedwars.QueryUtil:setQueryIgnored(killaurarangecirclepart, true);
+                    end;
+                end)
 				if Animation.Enabled and not (identifyexecutor and table.find({'Argon', 'Delta'}, ({identifyexecutor()})[1])) then
 					local fake = {
 						Controllers = {
@@ -2171,6 +2189,13 @@ run(function()
 
 				local swingCooldown = 0
 				repeat
+                    task.spawn(function()
+                        if killaurarangecircle["Enabled"] and killaurarangecirclepart then
+                            if entitylib.isAlive and entitylib.character.HumanoidRootPart then
+                                killaurarangecirclepart.Position = entitylib.character.HumanoidRootPart.Position - Vector3.new(0, entitylib.character.Humanoid.HipHeight, 0)
+                            end
+                        end
+                    end)
 					local attacked, sword, meta = {}, getAttackData()
 					Attacking = false
 					store.KillauraTarget = nil
@@ -2223,7 +2248,7 @@ run(function()
 								local actualRoot = v.Character.PrimaryPart
 								if actualRoot then
 									local dir = CFrame.lookAt(selfpos, actualRoot.Position).LookVector
-									local pos = selfpos + dir * math.max(delta.Magnitude - 14.399, 0)
+									local pos = selfpos + dir * math.max(delta.Magnitude - 14.39999, 0)
 									swingCooldown = tick()
 									bedwars.SwordController.lastAttack = workspace:GetServerTimeNow()
 									store.attackReach = (delta.Magnitude * 100) // 1 / 100
@@ -2252,13 +2277,15 @@ run(function()
 						end
 					end
 
-					for i, v in Boxes do
-						v.Adornee = attacked[i] and attacked[i].Entity.RootPart or nil
-						if v.Adornee then
-							v.Color3 = Color3.fromHSV(attacked[i].Check.Hue, attacked[i].Check.Sat, attacked[i].Check.Value)
-							v.Transparency = 1 - attacked[i].Check.Opacity
-						end
-					end
+                    task.spawn(function()
+                        for i, v in Boxes do
+                            v.Adornee = attacked[i] and attacked[i].Entity.RootPart or nil
+                            if v.Adornee then
+                                v.Color3 = Color3.fromHSV(attacked[i].Check.Hue, attacked[i].Check.Sat, attacked[i].Check.Value)
+                                v.Transparency = 1 - attacked[i].Check.Opacity
+                            end
+                        end
+                    end)
 
 					for i, v in Particles do
 						v.Position = attacked[i] and attacked[i].Entity.RootPart.Position or Vector3.new(9e9, 9e9, 9e9)
@@ -2274,10 +2301,18 @@ run(function()
 					task.wait(1 / UpdateRate.Value)
 				until not Killaura.Enabled
 			else
+                task.spawn(function()
+                    if killaurarangecirclepart then 
+                        killaurarangecirclepart:Destroy()
+                        killaurarangecirclepart = nil
+                    end
+                end)
 				store.KillauraTarget = nil
-				for _, v in Boxes do
-					v.Adornee = nil
-				end
+                task.spawn(function()
+                    for _, v in Boxes do
+                        v.Adornee = nil
+                    end
+                end)
 				for _, v in Particles do
 					v.Parent = nil
 				end
@@ -2312,8 +2347,8 @@ run(function()
 	SwingRange = Killaura:CreateSlider({
 		Name = 'Swing range',
 		Min = 1,
-		Max = 18,
-		Default = 18,
+		Max = 23,
+		Default = 23,
 		Suffix = function(val)
 			return val == 1 and 'stud' or 'studs'
 		end
@@ -2321,8 +2356,8 @@ run(function()
 	AttackRange = Killaura:CreateSlider({
 		Name = 'Attack range',
 		Min = 1,
-		Max = 18,
-		Default = 18,
+		Max = 23,
+		Default = 23,
 		Suffix = function(val)
 			return val == 1 and 'stud' or 'studs'
 		end
@@ -2331,7 +2366,7 @@ run(function()
 		Name = 'Swing time',
 		Min = 0,
 		Max = 0.5,
-		Default = 0.42,
+		Default = 0.5,
 		Decimal = 100
 	})
 	AngleSlider = Killaura:CreateSlider({
@@ -2344,7 +2379,7 @@ run(function()
 		Name = 'Update rate',
 		Min = 1,
 		Max = 120,
-		Default = 60,
+		Default = 120,
 		Suffix = 'hz'
 	})
 	MaxTargets = Killaura:CreateSlider({
@@ -2356,6 +2391,40 @@ run(function()
 	Sort = Killaura:CreateDropdown({
 		Name = 'Target Mode',
 		List = methods
+	})
+    killaurarangecircle = Killaura:CreateToggle({
+        Name = "Range Visualizer",
+        Function = function(callback: boolean): void
+            if callback then
+                task.spawn(function()
+                    killaurarangecirclepart = Instance.new("MeshPart")
+                    killaurarangecirclepart.MeshId = "rbxassetid://3726303797"
+                    killaurarangecirclepart.Color = Color3.fromHSV(killauracolor["Hue"], killauracolor["Sat"], killauracolor.Value)
+                    killaurarangecirclepart.CanCollide = false
+                    killaurarangecirclepart.Anchored = true
+                    killaurarangecirclepart.Material = Enum.Material.Neon
+                    killaurarangecirclepart.Size = Vector3.new(AttackRange.Value * 0.7, 0.01, AttackRange.Value * 0.7)
+                    if Killaura.Enabled then 
+                        killaurarangecirclepart.Parent = gameCamera
+                    end
+                    bedwars.QueryUtil:setQueryIgnored(killaurarangecirclepart, true)
+                end)
+            else
+                task.spawn(function()
+                    if killaurarangecirclepart then 
+                        killaurarangecirclepart:Destroy()
+                        killaurarangecirclepart = nil
+                    end
+                end)
+            end
+        end
+    })
+    killauracolor = Killaura:CreateColorSlider({
+         Name = 'colour',
+         Darker = true,
+		 DefaultHue = 0.6,
+		 DefaultOpacity = 0.5,
+		 Visible = false
 	})
 	Mouse = Killaura:CreateToggle({Name = 'Require mouse down'})
 	Swing = Killaura:CreateToggle({Name = 'No Swing'})
@@ -2543,7 +2612,6 @@ run(function()
 		Tooltip = 'Only attacks while swinging manually'
 	})]]
 end)
-	
 run(function()
 	local Value
 	local CameraDir
@@ -3096,8 +3164,8 @@ run(function()
 	Range = ProjectileAura:CreateSlider({
 		Name = 'Range',
 		Min = 1,
-		Max = 50,
-		Default = 50,
+		Max = 5000,
+		Default = 5000,
 		Suffix = function(val)
 			return val == 1 and 'stud' or 'studs'
 		end
@@ -7730,7 +7798,7 @@ run(function()
 		Name = 'HitFix',
 		Function = function(callback)
 			debug.setconstant(bedwars.SwordController.swingSwordAtMouse, 23, callback and 'raycast' or 'Raycast')
-			debug.setupvalue(bedwars.SwordController.swingSwordAtMouse, 4, callback and bedwars.QueryUtil or workspace)
+			debug.setupvalue(bedwars.SwordController.swingSwordAtMouse, 4, workspace)
 		end,
 		Tooltip = 'Changes the raycast function to the correct one'
 	})
@@ -8490,4 +8558,3 @@ run(function()
 		List = WinEffectName
 	})
 end)
-	
