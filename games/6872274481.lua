@@ -7186,220 +7186,219 @@ run(function()
 end)
 	
 run(function()
-	local Breaker
-	local Range
-	local BreakSpeed
-	local UpdateRate
-	local Custom
-	local Bed
-	local LuckyBlock
-	local IronOre
-	local Effect
-	local CustomHealth = {}
-	local Animation
-	local SelfBreak
-	local InstantBreak
-	local LimitItem
-	local customlist, parts = {}, {}
-	
-	local function customHealthbar(self, blockRef, health, maxHealth, changeHealth, block)
-		if block:GetAttribute('NoHealthbar') then return end
-		if not self.healthbarPart or not self.healthbarBlockRef or self.healthbarBlockRef.blockPosition ~= blockRef.blockPosition then
-			self.healthbarMaid:DoCleaning()
-			self.healthbarBlockRef = blockRef
-			local create = bedwars.Roact.createElement
-			local percent = math.clamp(health / maxHealth, 0, 1)
-			local cleanCheck = true
-			local part = Instance.new('Part')
-			part.Size = Vector3.one
-			part.CFrame = CFrame.new(bedwars.BlockController:getWorldPosition(blockRef.blockPosition))
-			part.Transparency = 1
-			part.Anchored = true
-			part.CanCollide = false
-			part.Parent = workspace
-			self.healthbarPart = part
-			bedwars.QueryUtil:setQueryIgnored(self.healthbarPart, true)
-	
-			local mounted = bedwars.Roact.mount(create('BillboardGui', {
-				Size = UDim2.fromOffset(249, 102),
-				StudsOffset = Vector3.new(0, 2.5, 0),
-				Adornee = part,
-				MaxDistance = 40,
-				AlwaysOnTop = true
-			}, {
-				create('Frame', {
-					Size = UDim2.fromOffset(160, 50),
-					Position = UDim2.fromOffset(44, 32),
-					BackgroundColor3 = Color3.new(),
-					BackgroundTransparency = 0.5
-				}, {
-					create('UICorner', {CornerRadius = UDim.new(0, 5)}),
-					create('ImageLabel', {
-						Size = UDim2.new(1, 89, 1, 52),
-						Position = UDim2.fromOffset(-48, -31),
-						BackgroundTransparency = 1,
-						Image = getcustomasset('newvape/assets/new/blur.png'),
-						ScaleType = Enum.ScaleType.Slice,
-						SliceCenter = Rect.new(52, 31, 261, 502)
-					}),
-					create('TextLabel', {
-						Size = UDim2.fromOffset(145, 14),
-						Position = UDim2.fromOffset(13, 12),
-						BackgroundTransparency = 1,
-						Text = bedwars.ItemMeta[block.Name].displayName or block.Name,
-						TextXAlignment = Enum.TextXAlignment.Left,
-						TextYAlignment = Enum.TextYAlignment.Top,
-						TextColor3 = Color3.new(),
-						TextScaled = true,
-						Font = Enum.Font.Arial
-					}),
-					create('TextLabel', {
-						Size = UDim2.fromOffset(145, 14),
-						Position = UDim2.fromOffset(12, 11),
-						BackgroundTransparency = 1,
-						Text = bedwars.ItemMeta[block.Name].displayName or block.Name,
-						TextXAlignment = Enum.TextXAlignment.Left,
-						TextYAlignment = Enum.TextYAlignment.Top,
-						TextColor3 = color.Dark(uipallet.Text, 0.16),
-						TextScaled = true,
-						Font = Enum.Font.Arial
-					}),
-					create('Frame', {
-						Size = UDim2.fromOffset(138, 4),
-						Position = UDim2.fromOffset(12, 32),
-						BackgroundColor3 = uipallet.Main
-					}, {
-						create('UICorner', {CornerRadius = UDim.new(1, 0)}),
-						create('Frame', {
-							[bedwars.Roact.Ref] = self.healthbarProgressRef,
-							Size = UDim2.fromScale(percent, 1),
-							BackgroundColor3 = Color3.fromHSV(math.clamp(percent / 2.5, 0, 1), 0.89, 0.75)
-						}, {create('UICorner', {CornerRadius = UDim.new(1, 0)})})
-					})
-				})
-			}), part)
-	
-			self.healthbarMaid:GiveTask(function()
-				cleanCheck = false
-				self.healthbarBlockRef = nil
-				bedwars.Roact.unmount(mounted)
-				if self.healthbarPart then
-					self.healthbarPart:Destroy()
-				end
-				self.healthbarPart = nil
-			end)
-	
-			bedwars.RuntimeLib.Promise.delay(5):andThen(function()
-				if cleanCheck then
-					self.healthbarMaid:DoCleaning()
-				end
-			end)
-		end
-	
-		local newpercent = math.clamp((health - changeHealth) / maxHealth, 0, 1)
-		tweenService:Create(self.healthbarProgressRef:getValue(), TweenInfo.new(0.3), {
-			Size = UDim2.fromScale(newpercent, 1), BackgroundColor3 = Color3.fromHSV(math.clamp(newpercent / 2.5, 0, 1), 0.89, 0.75)
-		}):Play()
-	end
-	
-	local hit = 0
-	
-	local function attemptBreak(tab, localPosition)
-		if not tab then return end
-		for _, v in tab do
-			if (v.Position - localPosition).Magnitude < Range.Value and bedwars.BlockController:isBlockBreakable({blockPosition = v.Position / 3}, lplr) then
-				if not SelfBreak.Enabled and v:GetAttribute('PlacedByUserId') == lplr.UserId then continue end
-				if (v:GetAttribute('BedShieldEndTime') or 0) > workspace:GetServerTimeNow() then continue end
-				if LimitItem.Enabled and not (store.hand.tool and bedwars.ItemMeta[store.hand.tool.Name].breakBlock) then continue end
-	
-				hit += 1
-				local target, path, endpos = bedwars.breakBlock(v, Effect.Enabled, Animation.Enabled, CustomHealth.Enabled and customHealthbar or nil, InstantBreak.Enabled)
-				if path then
-					local currentnode = target
-					for _, part in parts do
-						part.Position = currentnode or Vector3.zero
-						if currentnode then
-							part.BoxHandleAdornment.Color3 = currentnode == endpos and Color3.new(1, 0.2, 0.2) or currentnode == target and Color3.new(0.2, 0.2, 1) or Color3.new(0.2, 1, 0.2)
-						end
-						currentnode = path[currentnode]
-					end
-				end
-	
-				task.wait(InstantBreak.Enabled and (store.damageBlockFail > tick() and 4.5 or 0) or BreakSpeed.Value)
-	
-				return true
-			end
-		end
-	
-		return false
-	end
-	
-	Breaker = vape.Categories.Minigames:CreateModule({
-		Name = 'Breaker',
-		Function = function(callback)
-			if callback then
-				for _ = 1, 30 do
-					local part = Instance.new('Part')
-					part.Anchored = true
-					part.CanQuery = false
-					part.CanCollide = false
-					part.Transparency = 1
-					part.Parent = gameCamera
-					local highlight = Instance.new('BoxHandleAdornment')
-					highlight.Size = Vector3.one
-					highlight.AlwaysOnTop = true
-					highlight.ZIndex = 1
-					highlight.Transparency = 0.5
-					highlight.Adornee = part
-					highlight.Parent = part
-					table.insert(parts, part)
-				end
-	
-				local beds = collection('bed', Breaker)
-				local luckyblock = collection('LuckyBlock', Breaker)
-				local ironores = collection('iron-ore', Breaker)
-				customlist = collection('block', Breaker, function(tab, obj)
-					if table.find(Custom.ListEnabled, obj.Name) then
-						table.insert(tab, obj)
-					end
-				end)
-	
-				repeat
-					task.wait(1 / UpdateRate.Value)
-					if not Breaker.Enabled then break end
-					if entitylib.isAlive then
-						local localPosition = entitylib.character.RootPart.Position
-	
-						if attemptBreak(Bed.Enabled and beds, localPosition) then continue end
-						if attemptBreak(customlist, localPosition) then continue end
-						if attemptBreak(LuckyBlock.Enabled and luckyblock, localPosition) then continue end
-						if attemptBreak(IronOre.Enabled and ironores, localPosition) then continue end
-	
-						for _, v in parts do
-							v.Position = Vector3.zero
-						end
-					end
-				until not Breaker.Enabled
-			else
-				for _, v in parts do
-					v:ClearAllChildren()
-					v:Destroy()
-				end
-				table.clear(parts)
-			end
-		end,
-		Tooltip = 'Break blocks around you automatically'
-	})
-	Range = Breaker:CreateSlider({
-		Name = 'Break range',
-		Min = 1,
-		Max = 30,
-		Default = 30,
-		Suffix = function(val)
-			return val == 1 and 'stud' or 'studs'
-		end
-	})
-	BreakSpeed = Breaker:CreateSlider({
+  local Breaker
+  local Range
+  local BreakSpeed
+  local UpdateRate
+  local Custom
+  local Bed
+  local LuckyBlock
+  local IronOre
+  local Effect
+  local CustomHealth = {}
+  local Animation
+  local SelfBreak
+  local InstantBreak
+  local LimitItem
+  local customlist, parts = {}, {}
+  
+  local function customHealthbar(self, blockRef, health, maxHealth, changeHealth, block)
+    if block:GetAttribute('NoHealthbar') then return end
+    if not self.healthbarPart or not self.healthbarBlockRef or self.healthbarBlockRef.blockPosition ~= blockRef.blockPosition then
+      self.healthbarMaid:DoCleaning()
+      self.healthbarBlockRef = blockRef
+      local create = bedwars.Roact.createElement
+      local percent = math.clamp(health / maxHealth, 0, 1)
+      local cleanCheck = true
+      local part = Instance.new('Part')
+      part.Size = Vector3.one
+      part.CFrame = CFrame.new(bedwars.BlockController:getWorldPosition(blockRef.blockPosition))
+      part.Transparency = 1
+      part.Anchored = true
+      part.CanCollide = false
+      part.Parent = workspace
+      self.healthbarPart = part
+      bedwars.QueryUtil:setQueryIgnored(self.healthbarPart, true)
+  
+      local mounted = bedwars.Roact.mount(create('BillboardGui', {
+        Size = UDim2.fromOffset(249, 102),
+        StudsOffset = Vector3.new(0, 2.5, 0),
+        Adornee = part,
+        MaxDistance = 40,
+        AlwaysOnTop = true
+      }, {
+        create('Frame', {
+          Size = UDim2.fromOffset(160, 50),
+          Position = UDim2.fromOffset(44, 32),
+          BackgroundColor3 = Color3.new(),
+          BackgroundTransparency = 0.5
+        }, {
+          create('UICorner', {CornerRadius = UDim.new(0, 5)}),
+          create('ImageLabel', {
+            Size = UDim2.new(1, 89, 1, 52),
+            Position = UDim2.fromOffset(-48, -31),
+            BackgroundTransparency = 1,
+            Image = getcustomasset('vape/assets/new/Blur.png'),
+            ScaleType = Enum.ScaleType.Slice,
+            SliceCenter = Rect.new(52, 31, 261, 502)
+          }),
+          create('TextLabel', {
+            Size = UDim2.fromOffset(145, 14),
+            Position = UDim2.fromOffset(13, 12),
+            BackgroundTransparency = 1,
+            Text = bedwars.ItemMeta[block.Name].displayName or block.Name,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            TextYAlignment = Enum.TextYAlignment.Top,
+            TextColor3 = Color3.new(),
+            TextScaled = true,
+            Font = Enum.Font.Arial
+          }),
+          create('TextLabel', {
+            Size = UDim2.fromOffset(145, 14),
+            Position = UDim2.fromOffset(12, 11),
+            BackgroundTransparency = 1,
+            Text = bedwars.ItemMeta[block.Name].displayName or block.Name,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            TextYAlignment = Enum.TextYAlignment.Top,
+            TextColor3 = color.Dark(uipallet.Text, 0.16),
+            TextScaled = true,
+            Font = Enum.Font.Arial
+          }),
+          create('Frame', {
+            Size = UDim2.fromOffset(138, 4),
+            Position = UDim2.fromOffset(12, 32),
+            BackgroundColor3 = uipallet.Main
+          }, {
+            create('UICorner', {CornerRadius = UDim.new(1, 0)}),
+            create('Frame', {
+              [bedwars.Roact.Ref] = self.healthbarProgressRef,
+              Size = UDim2.fromScale(percent, 1),
+              BackgroundColor3 = Color3.fromHSV(math.clamp(percent / 2.5, 0, 1), 0.89, 0.75)
+            }, {create('UICorner', {CornerRadius = UDim.new(1, 0)})})
+          })
+        })
+      }), part)
+  
+      self.healthbarMaid:GiveTask(function()
+        cleanCheck = false
+        self.healthbarBlockRef = nil
+        bedwars.Roact.unmount(mounted)
+        if self.healthbarPart then
+          self.healthbarPart:Destroy()
+        end
+        self.healthbarPart = nil
+      end)
+  
+      bedwars.RuntimeLib.Promise.delay(5):andThen(function()
+        if cleanCheck then
+          self.healthbarMaid:DoCleaning()
+        end
+      end)
+    end
+  
+    local newpercent = math.clamp((health - changeHealth) / maxHealth, 0, 1)
+    tweenService:Create(self.healthbarProgressRef:getValue(), TweenInfo.new(0.3), {
+      Size = UDim2.fromScale(newpercent, 1), BackgroundColor3 = Color3.fromHSV(math.clamp(newpercent / 2.5, 0, 1), 0.89, 0.75)
+    }):Play()
+  end
+  
+  local hit = 0
+  
+  local function attemptBreak(tab, localPosition)
+    if not tab then return end
+    for _, v in tab do
+      if (v.Position - localPosition).Magnitude < Range.Value and bedwars.BlockController:isBlockBreakable({blockPosition = v.Position / 3}, lplr) then
+        if not SelfBreak.Enabled and v:GetAttribute('PlacedByUserId') == lplr.UserId then continue end
+        if LimitItem.Enabled and not (store.hand.tool and bedwars.ItemMeta[store.hand.tool.Name].breakBlock) then continue end
+  
+        hit += 1
+        local target, path, endpos = bedwars.breakBlock(v, Effect.Enabled, Animation.Enabled, CustomHealth.Enabled and customHealthbar or nil, InstantBreak.Enabled)
+        if path then
+          local currentnode = target
+          for _, part in parts do
+            part.Position = currentnode or Vector3.zero
+            if currentnode then
+              part.BoxHandleAdornment.Color3 = currentnode == endpos and Color3.new(1, 0.2, 0.2) or currentnode == target and Color3.new(0.2, 0.2, 1) or Color3.new(0.2, 1, 0.2)
+            end
+            currentnode = path[currentnode]
+          end
+        end
+  
+        task.wait(InstantBreak.Enabled and (store.damageBlockFail > tick() and 0.2 or 0.05) or BreakSpeed.Value)
+  
+        return true
+      end
+    end
+  
+    return false
+  end
+  
+  Breaker = vape.categories.world:CreateModule({
+    Name = 'Breaker',
+    Function = function(callback)
+      if callback then
+        for _ = 1, 30 do
+          local part = Instance.new('Part')
+          part.Anchored = true
+          part.CanQuery = false
+          part.CanCollide = false
+          part.Transparency = 1
+          part.Parent = gameCamera
+          local highlight = Instance.new('BoxHandleAdornment')
+          highlight.Size = Vector3.one
+          highlight.AlwaysOnTop = true
+          highlight.ZIndex = 1
+          highlight.Transparency = 0.5
+          highlight.Adornee = part
+          highlight.Parent = part
+          table.insert(parts, part)
+        end
+  
+        local beds = collection('bed', Breaker)
+        local luckyblock = collection('LuckyBlock', Breaker)
+        local ironores = collection('iron-ore', Breaker)
+        customlist = collection('block', Breaker, function(tab, obj)
+          if table.find(Custom.ListEnabled, obj.Name) then
+            table.insert(tab, obj)
+          end
+        end)
+  
+        repeat
+          task.wait(1 / UpdateRate.Value)
+          if not Breaker.Enabled then break end
+          if entitylib.isAlive then
+            local localPosition = entitylib.character.RootPart.Position
+  
+            if attemptBreak(Bed.Enabled and beds, localPosition) then continue end
+            if attemptBreak(customlist, localPosition) then continue end
+            if attemptBreak(LuckyBlock.Enabled and luckyblock, localPosition) then continue end
+            if attemptBreak(IronOre.Enabled and ironores, localPosition) then continue end
+  
+            for _, v in parts do
+              v.Position = Vector3.zero
+            end
+          end
+        until not Breaker.Enabled
+      else
+        for _, v in parts do
+          v:ClearAllChildren()
+          v:Destroy()
+        end
+        table.clear(parts)
+      end
+    end,
+    Tooltip = 'Break blocks around you automatically'
+  })
+  Range = Breaker:CreateSlider({
+    Name = 'Break range',
+    Min = 1,
+    Max = 30,
+    Default = 30,
+    Suffix = function(val)
+      return val == 1 and 'stud' or 'studs'
+    end
+  })
+  	BreakSpeed = Breaker:CreateSlider({
 		Name = 'Break speed',
 		Min = 0,
 		Max = 0.3,
@@ -7407,58 +7406,58 @@ run(function()
 		Decimal = 100,
 		Suffix = 'seconds'
 	})
-	UpdateRate = Breaker:CreateSlider({
-		Name = 'Update rate',
-		Min = 1,
-		Max = 120,
-		Default = 60,
-		Suffix = 'hz'
-	})
-	Custom = Breaker:CreateTextList({
-		Name = 'Custom',
-		Function = function()
-			if not customlist then return end
-			table.clear(customlist)
-			for _, obj in store.blocks do
-				if table.find(Custom.ListEnabled, obj.Name) then
-					table.insert(customlist, obj)
-				end
-			end
-		end
-	})
-	Bed = Breaker:CreateToggle({
-		Name = 'Break Bed',
-		Default = true
-	})
-	LuckyBlock = Breaker:CreateToggle({
-		Name = 'Break Lucky Block',
-		Default = true
-	})
-	IronOre = Breaker:CreateToggle({
-		Name = 'Break Iron Ore',
-		Default = true
-	})
-	Effect = Breaker:CreateToggle({
-		Name = 'Show Healthbar & Effects',
-		Function = function(callback)
-			if CustomHealth.Object then
-				CustomHealth.Object.Visible = callback
-			end
-		end,
-		Default = true
-	})
-	CustomHealth = Breaker:CreateToggle({
-		Name = 'Custom Healthbar',
-		Default = true,
-		Darker = true
-	})
-	Animation = Breaker:CreateToggle({Name = 'Animation'})
-	SelfBreak = Breaker:CreateToggle({Name = 'Self Break'})
-	InstantBreak = Breaker:CreateToggle({Name = 'Instant Break'})
-	LimitItem = Breaker:CreateToggle({
-		Name = 'Limit to items',
-		Tooltip = 'Only breaks when tools are held'
-	})
+  UpdateRate = Breaker:CreateSlider({
+    Name = 'Update rate',
+    Min = 1,
+    Max = 120,
+    Default = 60,
+    Suffix = 'hz'
+  })
+  Custom = Breaker:CreateTextList({
+    Name = 'Custom',
+    Function = function()
+      if not customlist then return end
+      table.clear(customlist)
+      for _, obj in store.blocks do
+        if table.find(Custom.ListEnabled, obj.Name) then
+          table.insert(customlist, obj)
+        end
+      end
+    end
+  })
+  Bed = Breaker:CreateToggle({
+    Name = 'Break Bed',
+    Default = true
+  })
+  LuckyBlock = Breaker:CreateToggle({
+    Name = 'Break Lucky Block',
+    Default = true
+  })
+  IronOre = Breaker:CreateToggle({
+    Name = 'Break Iron Ore',
+    Default = true
+  })
+  Effect = Breaker:CreateToggle({
+    Name = 'Show Healthbar & Effects',
+    Function = function(callback)
+      if CustomHealth.Object then
+        CustomHealth.Object.Visible = callback
+      end
+    end,
+    Default = true
+  })
+  CustomHealth = Breaker:CreateToggle({
+    Name = 'Custom Healthbar',
+    Default = true,
+    Darker = true
+  })
+  Animation = Breaker:CreateToggle({Name = 'Animation'})
+  SelfBreak = Breaker:CreateToggle({Name = 'Self Break'})
+  InstantBreak = Breaker:CreateToggle({Name = 'Instant Break'})
+  LimitItem = Breaker:CreateToggle({
+    Name = 'Limit to items',
+    Tooltip = 'Only breaks when tools are held'
+  })
 end)
 	
 run(function()
@@ -8557,4 +8556,241 @@ run(function()
 		Name = 'Effects',
 		List = WinEffectName
 	})
+end)
+
+run(function()
+	local FakeLag = {Enabled = false}
+	local FakeLagUsage = {Value = "Blatant"}
+	local FakeLagSpeed = {Enabled = false}
+	local FakeLagDelay1 = {Value = 2}
+	local FakeLagDelay2 = {Value = 7}
+	local FakeLagDelayLegit = {Value = 3}
+	local FakeLagSpeed1 = {Value = 22}
+	local FakeLagSpeed2 = {Value = 18}
+	local FakeLagSpeed3 = {Value = 20}
+	local FakeLagSpeed4 = {Value = 2.7}
+	local FakeLagSpeed5 = {Value = 1.5}
+	local function ChangeSpeeds() -- this won't work with speed but ok
+		entitylib.character.Humanoid.WalkSpeed = FakeLagSpeed1.Value
+		task.wait(FakeLagSpeed4.Value / 10)
+		entitylib.character.Humanoid.WalkSpeed = FakeLagSpeed2.Value
+		task.wait(FakeLagSpeed5.Value / 10)
+		entitylib.character.Humanoid.WalkSpeed = FakeLagSpeed3.Value
+	end
+	FakeLag = vape.Categories.Blatant:CreateModule({
+		Name = "FakeLag",
+        Tooltip = "Makes people think you're laggy",
+		Function = function(callback)
+			if callback then
+				task.spawn(function()
+					repeat task.wait()
+						if FakeLagUsage.Value == "Blatant" then
+							entitylib.character.HumanoidRootPart.Anchored = true
+							task.wait(FakeLagDelay1.Value / 10)
+							entitylib.character.HumanoidRootPart.Anchored = false
+							ChangeSpeeds()
+							task.wait(FakeLagDelay2.Value/10)
+						elseif FakeLagUsage.Value == "Legit" then
+							entitylib.character.HumanoidRootPart.Anchored = true
+							task.wait(FakeLagDelay1.Value / 10 + FakeLagDelayLegit.Value)
+							entitylib.character.HumanoidRootPart.Anchored = false
+							ChangeSpeeds()
+							task.wait(FakeLagDelay2.Value / 10 + FakeLagDelayLegit.Value)
+						end
+					until not FakeLag.Enabled
+				end)
+			else
+				if entitylib.character.HumanoidRootPart.Anchored then
+					entitylib.character.HumanoidRootPart.Anchored = false
+				end
+			end
+		end,
+		ExtraText = function()
+			return FakeLagUsage.Value
+		end
+	})
+FakeLagUsage = FakeLag:CreateDropdown({
+    Name = "Mode",
+    List = {
+        "Blatant",
+        "Legit"
+    },
+    Tooltip = "FakeLag Mode",
+    Function = function() end
+})
+
+FakeLagSpeed = FakeLag:CreateToggle({
+    Name = "Speed",
+    Default = false,
+    Tooltip = "Changes speed",
+    Function = function() end
+})
+
+FakeLagDelay1 = FakeLag:CreateSlider({
+    Name = "Anchored Delay",
+    Min = 0,
+    Max = 20,
+    Tooltip = "Anchored Delay Value",
+    Function = function() end,
+    Default = 2
+})
+
+FakeLagDelay2 = FakeLag:CreateSlider({
+    Name = "Unanchored Delay",
+    Min = 0,
+    Max = 20,
+    Tooltip = "Not Anchored Delay Value",
+    Function = function() end,
+    Default = 7
+})
+
+FakeLagDelayLegit = FakeLag:CreateSlider({
+    Name = "Legit",
+    Min = 1,
+    Max = 10,
+    Tooltip = "Legit Time",
+    Function = function() end,
+    Default = 3
+})
+
+FakeLagSpeed1 = FakeLag:CreateSlider({
+    Name = "Speed 1",
+    Min = 1,
+    Max = 22,
+    Tooltip = "Speed 1 Value",
+    Function = function() end,
+    Default = 22
+})
+
+FakeLagSpeed2 = FakeLag:CreateSlider({
+    Name = "Speed 2",
+    Min = 1,
+    Max = 20,
+    Tooltip = "Speed 2 Value",
+    Function = function() end,
+    Default = 18
+})
+
+FakeLagSpeed3 = FakeLag:CreateSlider({
+    Name = "Speed 3",
+    Min = 1,
+    Max = 20,
+    Tooltip = "Speed 3 Value",
+    Function = function() end,
+    Default = 20
+})
+
+FakeLagSpeed4 = FakeLag:CreateSlider({
+    Name = "Speed Delay 1",
+    Min = 1,
+    Max = 3,
+    Tooltip = "Speed Delay 1 Value",
+    Function = function() end,
+    Default = 2.7
+})
+
+FakeLagSpeed5 = FakeLag:CreateSlider({
+    Name = "Speed Delay 2",
+    Min = 1,
+    Max = 3,
+    Tooltip = "Speed Delay 2 Value",
+    Function = function() end,
+    Default = 1.5
+})
+end)
+run(function()
+  local texturepack = {Enabled = false}
+  local packDropdown = {Value = "Melo Pack"}
+
+  local ogpackloader = game:GetObjects("rbxassetid://14027120450")
+  local ogtxtpack = ogpackloader[1]
+  ogtxtpack.Name = "OG Pack"
+  ogtxtpack.Parent = replicatedStorage
+  task.wait()
+  local melopackloader = game:GetObjects("rbxassetid://14774202839")
+  local melotxtpack = melopackloader[1]
+  melotxtpack.Name = "Melo's Pack"
+  melotxtpack.Parent = replicatedStorage
+  task.wait()
+  local azzapackloader = game:GetObjects("rbxassetid://14803122185")
+  local azzatxtpack = azzapackloader[1]
+  azzatxtpack.Name = "4zze's Pack"
+  azzatxtpack.Parent = replicatedStorage
+  local viewmodelCon
+  local textures = {
+    ["OG Pack"] = ogtxtpack,
+    ["Melo's Pack"] = melotxtpack,
+    ["4zze's Pack"] = azzatxtpack
+  }
+
+  local function refreshViewmodel(child)
+    if not entitylib.character then return end
+    for _,v1 in textures[packDropdown.Value]:GetChildren() do
+      if not (string.lower(v1.Name) == child.Name and child.Parent.Name ~= child.Name) then continue end
+      -- first person viewmodel check
+      for _,v2 in child:GetDescendants() do
+        if v2:IsA("Part") or v2:IsA("MeshPart") then
+          v2.Transparency = 1
+        end
+      end
+      -- third person viewmodel check
+      for _,v2 in lplr.Character:GetChildren() do
+        if v2.Name == string.lower(v1.Name) then
+          for _,v3 in v2:GetDescendants() do
+            if v3.Name ~= child.Name then
+              if v3:IsA("Part") or v3:IsA("MeshPart") then
+                v3.Transparency = 1
+                v3:GetPropertyChangedSignal("Transparency"):Connect(function() v3.Transparency = 1 end)
+              end
+            end
+          end
+        end
+      end
+      -- first person txtpack renderer
+      local vmmodel = v1:Clone()
+      vmmodel.CFrame = child.Handle.CFrame 
+      vmmodel.CFrame = vmmodel.CFrame * (packDropdown.Value == "OG Pack" and CFrame.new(0, -0.2, 0) or packDropdown.Value == "Melo's Pack" and CFrame.new(0.2, -0.2, 0) or packDropdown.Value == "4zze's Pack" and CFrame.new(0.8,0.1,0.7)) * CFrame.Angles(math.rad(90),math.rad(-130),math.rad(0))
+      if string.lower(child.Name) == "rageblade" then vmmodel.CFrame = vmmodel.CFrame * CFrame.Angles(math.rad(-180),math.rad(100),math.rad(0)) end
+      if string.lower(child.Name):find("pickaxe") then vmmodel.CFrame = vmmodel.CFrame * CFrame.Angles(math.rad(-55),math.rad(-30),math.rad(50)) end
+      if string.lower(child.Name):find("scythe") then vmmodel.CFrame = vmmodel.CFrame * CFrame.Angles(math.rad(-65),math.rad(-80),math.rad(100)) * CFrame.new(-2.8,0.4,-0.8) end
+      if (string.lower(child.Name):find("axe")) and not (string.lower(child.Name):find("pickaxe")) then vmmodel.CFrame = vmmodel.CFrame * CFrame.Angles(math.rad(-55),math.rad(-30),math.rad(50)) * (packDropdown.Value == "Melo's Pack" and CFrame.new(-0.2,0,0.2) or packDropdown.Value == "4zze's Pack" and CFrame.new(-1.5,0,-0.8)) end
+      vmmodel.Parent = child
+      local vmmodelweld = Instance.new("WeldConstraint",vmmodel)
+      vmmodelweld.Part0 = vmmodelweld.Parent
+      vmmodelweld.Part1 = child.Handle
+      -- third person txtpack renderer
+      local charmodel = v1:Clone()
+      charmodel.CFrame = playersService.LocalPlayer.Character[child.Name]:FindFirstChild("Handle").CFrame
+      charmodel.CFrame = charmodel.CFrame * (packDropdown.Value == "OG Pack" and CFrame.new(0, -0.5, 0) or packDropdown.Value == "Melo's Pack" and CFrame.new(0.2, -0.9, 0) or packDropdown.Value == "4zze's Pack" and CFrame.new(0.1,-1.2,0)) * CFrame.Angles(math.rad(90),math.rad(-130),math.rad(0))
+      if string.lower(child.Name) == "rageblade" then charmodel.CFrame = charmodel.CFrame * CFrame.Angles(math.rad(-180),math.rad(100),math.rad(0)) * CFrame.new(0.8,0,-1.1) end
+      if string.lower(child.Name):find("pickaxe") then charmodel.CFrame = charmodel.CFrame * CFrame.Angles(math.rad(-55),math.rad(-30),math.rad(50)) * CFrame.new(-0.8,-0.2,1.1) end
+      if string.lower(child.Name):find("scythe") then charmodel.CFrame = charmodel.CFrame * CFrame.Angles(math.rad(-65),math.rad(-80),math.rad(100)) * CFrame.new(-1.8,-0.5,0) end
+      if (string.lower(child.Name):find("axe")) and not (string.lower(child.Name):find("pickaxe")) then charmodel.CFrame = charmodel.CFrame * CFrame.Angles(math.rad(-55),math.rad(-30),math.rad(50)) * CFrame.new(-1.4,-0.2,0.6) end
+      charmodel.Anchored = false
+      charmodel.CanCollide = false
+      charmodel.Parent = playersService.LocalPlayer.Character[child.Name]
+      local charmodelweld = Instance.new("WeldConstraint",charmodel)
+      charmodelweld.Part0 = charmodelweld.Parent
+      charmodelweld.Part1 = playersService.LocalPlayer.Character[child.Name].Handle
+    end
+  end
+
+  texturepack = vape.Categories.Visual:CreateModule({
+    Name = "TexturePack",
+    HoverText = "Modifies your renderer",
+    Function = function(callback)
+      if callback then
+        if gameCamera.Viewmodel:FindFirstChildWhichIsA("Accessory") then refreshViewmodel(gameCamera.Viewmodel:FindFirstChildWhichIsA("Accessory")) end
+        viewmodelCon = gameCamera.Viewmodel.ChildAdded:Connect(refreshViewmodel)
+      else
+        if viewmodelCon then pcall(function() viewmodelCon:Disconnect() end) end
+      end
+    end,
+    ExtraText = function() return packDropdown.Value end
+    })
+  packDropdown = texturepack:CreateDropdown({
+    Name = "Texture",
+    List = {"OG Pack","Melo's Pack","4zze's Pack"},
+    Function = function() end
+  })
 end)
